@@ -1,7 +1,3 @@
-Here's a generated `README.md` file for your project, including the link to Frontegg's official documentation:
-
----
-
 # User Assignment Prehook for Frontegg
 
 This project implements a **prehook** for assigning new users to a specific tenant and role when they sign up using Frontegg's signup flow. By utilizing this prehook, you can automatically manage access control and permissions for new users based on your organization’s structure.
@@ -68,8 +64,4 @@ To learn more about Frontegg prehooks and how they work, visit the [official doc
 
 ## License
 
-This project is licensed under the MIT License. 
-
----
-
-This `README.md` provides an overview of the setup, usage, and configuration required to implement the prehook for your Frontegg application.
+This project is licensed under the MIT License.
