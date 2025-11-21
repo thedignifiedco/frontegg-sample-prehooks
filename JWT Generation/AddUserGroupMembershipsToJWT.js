@@ -24,8 +24,8 @@ async function fetchVendorToken() {
       return tokenCache.token;
     }
 
-    const clientId = process.env.FRONTEGG_CLIENT_ID;
-    const secret = process.env.FRONTEGG_SECRET;
+    const clientId = await getSecret('FRONTEGG_CLIENT_ID');
+    const secret = await getSecret('FRONTEGG_SECRET');
 
     if (!clientId || !secret) {
       console.error('FRONTEGG_CLIENT_ID and FRONTEGG_SECRET environment variables are required');
@@ -100,6 +100,43 @@ async function fetchUserGroupMemberships(userId, tenantId, vendorToken) {
   }
 }
 
+async function fetchGroupsByIds(groupIds, tenantId, vendorToken) {
+  if (!Array.isArray(groupIds) || groupIds.length === 0) {
+    return [];
+  }
+
+  try {
+    const response = await fetch('https://api.frontegg.com/identity/resources/groups/v1/bulkGet', {
+      method: 'POST',
+      headers: {
+        'frontegg-tenant-id': tenantId,
+        'Authorization': `Bearer ${vendorToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        groupsIds: groupIds
+      })
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to fetch group details: ${response.status} ${response.statusText}`);
+      return [];
+    }
+
+    const data = await response.json();
+    if (Array.isArray(data?.groups)) {
+      return data.groups
+        .map(group => group?.name)
+        .filter((name) => typeof name === 'string' && name.trim().length > 0);
+    }
+
+    return [];
+  } catch (error) {
+    console.error('Error fetching group details:', error);
+    return [];
+  }
+}
+
 async function onEvent(eventData) {
   try {
     const userId = eventData?.prehookContext?.userId;
@@ -116,7 +153,7 @@ async function onEvent(eventData) {
           claims: {
             tenantId: tenantId,
             customClaims: {
-              groupIds: []
+              groups: []
             }
           }
         }
@@ -131,15 +168,16 @@ async function onEvent(eventData) {
           claims: {
             tenantId: tenantId,
             customClaims: {
-              groupIds: []
+              groups: []
             }
           }
         }
       };
     }
 
-    // Fetch user group memberships
+    // Fetch user group memberships (IDs first, then names)
     const groupIds = await fetchUserGroupMemberships(userId, tenantId, vendorToken);
+    const groups = await fetchGroupsByIds(groupIds, tenantId, vendorToken);
 
     // Preserve existing claims and add group memberships
     const existingClaims = eventData?.data?.claims || {};
@@ -152,7 +190,7 @@ async function onEvent(eventData) {
           ...existingClaims,
           customClaims: {
             ...(existingClaims.customClaims || {}),
-            groupIds: groupIds
+            groups: groups
           }
         }
       }
@@ -166,7 +204,7 @@ async function onEvent(eventData) {
         claims: {
           tenantId: eventData?.prehookContext?.tenantId || eventData?.data?.claims?.tenantId,
           customClaims: {
-            groupIds: []
+            groups: []
           }
         }
       }
